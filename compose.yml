@@ -1,0 +1,8 @@
+services:
+  tble:
+    build: .
+    container_name: tble
+    volumes:
+      - .:/workspace
+    working_dir: /workspace
+    command: sleep infinity
