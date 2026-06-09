@@ -12,6 +12,7 @@ FetchContent_MakeAvailable(googletest)
 # Single test binary aggregating all test files
 add_executable(test_suite
     test_mock_ble_controller.cpp
+    test_event_queue.cpp
 )
 
 target_link_libraries(test_suite PRIVATE
