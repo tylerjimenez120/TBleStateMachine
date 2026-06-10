@@ -100,3 +100,31 @@ class EventQueue {
 };
 
 }  // namespace tble
+
+
+/*
+                         ┌──────────────────────────┐
+                         │      EventQueue          │
+                         │  ┌────────────────────┐  │
+   PRODUCTOR             │  │ buffer_ [0|1|2|3]  │  │              CONSUMIDOR
+   ─────────             │  └────────────────────┘  │              ──────────
+                         │     ▲              ▲     │
+                         │     │              │     │
+   tryPush(event) ──────►│   tail_         head_    │──────► pop() ──► event
+                         │  (mete)         (saca)   │
+                         │                          │
+                         │  size_   shutdown_       │
+                         └──────────────────────────┘
+                                    ▲
+                                    │
+                              mutex_ + cv
+                            (sincronización)
+
+
+mete y avanza -> push
+saca y avanza -> pop
+
+tail → próxima posición libre (dónde se mete)
+head → posición del más viejo (de dónde se saca)
+head == tail → ambiguo (vacío o lleno) → desambigua size_
+                            */
