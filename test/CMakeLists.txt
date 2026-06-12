@@ -14,6 +14,7 @@ add_executable(test_suite
     test_mock_ble_controller.cpp
     test_event_queue.cpp
     test_state_machine.cpp
+    test_states.cpp
 )
 
 target_link_libraries(test_suite PRIVATE
