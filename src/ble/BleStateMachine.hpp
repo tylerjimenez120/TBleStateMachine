@@ -88,62 +88,62 @@ BleState currentStateId() const noexcept {
     }
 
     EventQueue<QueueCapacity> queue_;
-    IState* current_;//Puntero al estado actual (no posesión)
-    std::atomic<bool> running_{false}; //Flag atómico para el loop del worker
-    std::thread worker_; //El thread que ejecuta run()
+    IState* current_; // Pointer to the current state (non-owning)
+    std::atomic<bool> running_{false}; // Atomic flag for the worker loop
+    std::thread worker_; // The thread that executes run()
 };
 
 }  // namespace tble
 
 
 /*
-Las 3 reglas que rigen este código
+The 3 rules that govern this code:
 
-El state machine no posee estados — solo guarda un IState* al actual
-El thread siempre se cierra limpio — RAII en el destructor + shutdown de la cola
-El estado actual decide las transiciones — el state machine solo aplica lo que devuelve handleEvent
-
-
-
-Flujo de BleStateMachine
+The state machine does not own the states — it only holds an IState* to the current one.
+The thread always shuts down cleanly — RAII in the destructor + queue shutdown.
+The current state decides transitions — the state machine just applies what handleEvent returns.
 
 
-PRODUCTOR                    WORKER THREAD
-   pushEvent(e)                 (loop infinito)
+
+BleStateMachine flow
+
+
+PRODUCER                     WORKER THREAD
+   pushEvent(e)                 (infinite loop)
         │                              │
         ▼                              ▼
-   ┌─────────┐ pop ──► ¿evento?
+   ┌─────────┐ pop ──► event?
    │ queue_  │           │
-   │ [e][e]  │      no ──┴── sí
+   │ [e][e]  │      no ──┴── yes
    └─────────┘      │        │
         ▲           ▼        ▼
         │        break   current_->handleEvent(e)
         │                    │
-        │              devuelve IState* next
+        │              returns IState* next
         │                    │
-        │           ¿next ≠ current y ≠ null?
+        │           next != current and != null?
         │                    │
-        │            no ─────┴───── sí
+        │            no ─────┴───── yes
         │            │              │
         │            ▼              ▼
-        │         loop         exit() → cambia → enter()
+        │         loop         exit() → change → enter()
         │                            │
         └────────────────────────────┘
-                  vuelve al loop
+                  back to the loop
 
 
 
 
-Las 3 fases del state machine
+The 3 phases of the state machine
    ┌─────────────────┐   ┌─────────────────┐   ┌─────────────────┐
-   │   1. ENTRADA    │   │   2. EVENTOS    │   │   3. SALIDA     │
+   │   1. ENTRY      │   │   2. EVENTS     │   │   3. EXIT       │
    ├─────────────────┤   ├─────────────────┤   ├─────────────────┤
-   │ start()         │   │ Productores     │   │ stop()          │
+   │ start()         │   │ Producers       │   │ stop()          │
    │   ↓             │   │ pushEvent(e)    │   │   ↓             │
    │ current_->      │   │   ↓             │   │ shutdown queue  │
    │ enter()         │   │ Worker thread   │   │   ↓             │
-   │   ↓             │   │ procesa eventos │   │ worker termina  │
-   │ lanza worker    │   │ y transiciona   │   │   ↓             │
+   │   ↓             │   │ processes events│   │ worker ends     │
+   │ launches worker │   │ and transitions │   │   ↓             │
    │                 │   │                 │   │ join()          │
    └─────────────────┘   └─────────────────┘   └─────────────────┘
 

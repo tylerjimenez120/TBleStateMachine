@@ -30,8 +30,10 @@ class IBleController {
     IBleController() = default;
     virtual ~IBleController() = default;
 
-    /*copy and move disable
-    Una instancia de HAL representa un recurso de hardware específico. Copiarla no tiene sentido — crearías dos objetos que dicen ser dueños del mismo radio.
+    /* Copy and move disabled.
+    A HAL instance represents a specific hardware resource. Copying it
+    makes no sense — you'd end up with two objects claiming ownership
+    of the same radio.
     */
     IBleController(const IBleController&) = delete;
     IBleController& operator=(const IBleController&) = delete;

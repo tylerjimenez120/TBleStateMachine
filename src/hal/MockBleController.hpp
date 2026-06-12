@@ -33,20 +33,20 @@ class MockBleController final : public IBleController {
     // ---- IBleController contract ----
 
     /*
-    has_pending_failure_ = ¿está activada la inyección de fallo?
-    fail_next_ = si está activada, ¿para qué operación?
+    has_pending_failure_ = is failure injection enabled?
+    fail_next_ = if enabled, for which operation?
 
-    Llaman startAdvertising()
+    Calls startAdvertising()
    ↓
-Lockea mutex
+Lock mutex
    ↓
-Cuenta intento (++count)
+Count attempt (++count)
    ↓
-¿Fallo pendiente para esta operación?
-   ├─ SÍ → consume fallo, return false
-   └─ NO → marca advertising = true, return true
+Pending failure for this operation?
+   ├─ YES → consume failure, return false
+   └─ NO  → set advertising = true, return true
    ↓
-Libera mutex (automático al salir)
+Release mutex (automatic on scope exit)
     */
     bool startAdvertising() override {
         std::lock_guard<std::mutex> lock(mutex_);
@@ -54,7 +54,7 @@ Libera mutex (automático al salir)
         //
         if (has_pending_failure_ &&
             fail_next_ == BleOperation::StartAdvertising) {
-            has_pending_failure_ = false; //Consume el fallo pendiente — se gasta como un "ticket de un solo uso".
+            has_pending_failure_ = false; // Consume the pending failure — single-use ticket.
             return false;
         }
         radio_is_advertising_ = true;
@@ -135,17 +135,18 @@ Libera mutex (automático al salir)
         return disconnect_count_;
     }
 
-    /// Force the next call to @p op to return false. //Forzar que la próxima operación falle
-    //simular errores de hardware (NACK de I2C, timeouts, etc.) sin hardware real.
+    /// Force the next call to @p op to return false. // Force the next operation to fail.
+    // Simulates hardware errors (I2C NACK, timeouts, etc.) without real hardware.
     void injectFailure(BleOperation op) {
         std::lock_guard<std::mutex> lock(mutex_);
         fail_next_ = op;
         has_pending_failure_ = true;
     }
 
-    /// Advance the simulated clock by @p ms milliseconds. //Avanzar el reloj simulado
-    //Para probar comportamiento que depende del tiempo
-    // lo necesitas para probar lógica dependiente del tiempo sin esperar tiempo real. Es la misma idea del time_scale=0.0 que tenías en TCommand.
+    /// Advance the simulated clock by @p ms milliseconds. // Advance the simulated clock.
+    // Needed to test time-dependent behavior.
+    // Lets us test time-dependent logic without waiting in real time.
+    // Same idea as the time_scale=0.0 used in TCommand.
     void advanceTime(uint64_t ms) {
         current_millis_.fetch_add(ms);
     }
@@ -154,20 +155,21 @@ Libera mutex (automático al salir)
     mutable std::mutex mutex_;
     // Hardware radio status (not to be confused with BleState in the
     // state machine layer).
-    bool radio_is_advertising_{false}; //¿El radio está anunciándose?
-    bool link_is_active_{false}; //¿Hay conexión activa?
-    uint32_t advertising_start_count_{0}; //Cuántas veces se intentó startAdvertising
-    uint32_t advertising_stop_count_{0}; //Cuántas veces se intentó stopAdvertising
-    uint32_t accept_connection_count_{0}; //Cuántas veces se intentó acceptConnection
-    uint32_t disconnect_count_{0}; //Cuántas veces se intentó disconnect
+    bool radio_is_advertising_{false}; // Is the radio currently advertising?
+    bool link_is_active_{false}; // Is there an active link/connection?
+    uint32_t advertising_start_count_{0}; // How many times startAdvertising was attempted
+    uint32_t advertising_stop_count_{0}; // How many times stopAdvertising was attempted
+    uint32_t accept_connection_count_{0}; // How many times acceptConnection was attempted
+    uint32_t disconnect_count_{0}; // How many times disconnect was attempted
 
-    //Es una variable que guarda CUÁL operación debe fallar la próxima vez.
-    BleOperation fail_next_{BleOperation::StartAdvertising}; //qué operación va a fallar la proxima vez
-    bool has_pending_failure_{false}; //¿hay un fallo pendiente?
+    // Holds which operation should fail on the next call.
+    BleOperation fail_next_{BleOperation::StartAdvertising}; // Which operation will fail next
+    bool has_pending_failure_{false}; // Is there a pending failure?
 
-    std::atomic<uint64_t> current_millis_{0}; //El reloj simulado (en ms)
+    std::atomic<uint64_t> current_millis_{0}; // The simulated clock (ms)
     /*
-    current_millis_ es atomic porque se modifica/lee fuera del mutex. Atomic es más rápido y suficiente para una variable independiente.
+    current_millis_ is atomic because it is read/written outside the mutex.
+    Atomic is faster and sufficient for a single independent variable.
     */
 };
 

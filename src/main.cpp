@@ -10,21 +10,21 @@
 #include <iostream>
 #include <thread>
 
-#include "ble/BleStateMachine.hpp" // la clase orquestadora
-#include "hal/MockBleController.hpp" // la hal falsa
-//los 5 estados
+#include "ble/BleStateMachine.hpp" // the orchestrator class
+#include "hal/MockBleController.hpp" // the mock HAL
+// the 5 states
 #include "states/AdvertisingState.hpp"
 #include "states/ConnectedState.hpp"
 #include "states/ConnectingState.hpp"
 #include "states/DisconnectedState.hpp"
 #include "states/ErrorState.hpp"
 
-using tble::BleEvent; //crea un evento para enviar
-using tble::BleEventType;// el tipo de evento
-using tble::BleState; // enum de los estados
-using tble::BleStateMachine; //el orquestador 
-using tble::hal::MockBleController; // el hal
-//los 5 estados
+using tble::BleEvent; // create an event to send
+using tble::BleEventType; // event type
+using tble::BleState; // enum of the states
+using tble::BleStateMachine; // the orchestrator
+using tble::hal::MockBleController; // the HAL
+// the 5 states
 using tble::states::AdvertisingState;
 using tble::states::ConnectedState;
 using tble::states::ConnectingState;
@@ -33,7 +33,7 @@ using tble::states::ErrorState;
 
 namespace {
 
-//función helper para imprimir el estado como string
+// Helper function to print the state as a string
 const char* stateName(BleState s) {
     switch (s) {
         case BleState::Disconnected: return "Disconnected";
@@ -45,7 +45,7 @@ const char* stateName(BleState s) {
     return "Unknown";
 }
 
-//función helper para imprimir el evento como string
+// Helper function to print the event as a string
 const char* eventName(BleEventType t) {
     switch (t) {
         case BleEventType::StartAdvertising:      return "StartAdvertising";
@@ -60,9 +60,10 @@ const char* eventName(BleEventType t) {
     return "Unknown";
 }
 
-//Envía un evento al state machine, espera a que se procese, e imprime el estado resultante.
-template <std::size_t N> //template porque BleStateMachine necesita un N (capacidad)
-void postAndWait(BleStateMachine<N>& sm, BleEventType ev) { //-> BleStateMachine es template, si lo pasas como parámetro la función también debe ser template.
+// Sends an event to the state machine, waits for it to be processed,
+// and prints the resulting state.
+template <std::size_t N> // template because BleStateMachine needs an N (capacity)
+void postAndWait(BleStateMachine<N>& sm, BleEventType ev) { // -> BleStateMachine is a template; if passed as a parameter, the function must also be a template.
     std::cout << "  -> pushEvent(" << eventName(ev) << ")\n";
     sm.pushEvent(BleEvent{ev});
     std::this_thread::sleep_for(std::chrono::milliseconds(30));
@@ -71,24 +72,25 @@ void postAndWait(BleStateMachine<N>& sm, BleEventType ev) { //-> BleStateMachine
 /*
 BleStateMachine<N>
    │
-   "tiene adentro un..."
+   "contains inside a..."
    │
    ▼
 EventQueue<N>
    │
-   "tiene adentro un..."
+   "contains inside a..."
    │
    ▼
 std::array<BleEvent, N>
    │
-   "que guarda N de..."
+   "which holds N of..."
    │
    ▼
 BleEvent
 
 
-BleStateMachine NO es solo un wrapper de EventQueue. Adentro tiene más que eventos — 
-tiene también el estado actual, el worker thread, y los flags de control. Por eso ES la máquina en sí.
+BleStateMachine is NOT just a wrapper around EventQueue. Inside it has more than events —
+it also has the current state, the worker thread, and the control flags.
+That is why it IS the machine itself.
 */
 
 
@@ -98,7 +100,7 @@ int main() {
     std::cout << "=== TBleStateMachine Demo ===\n\n";
 
     // 1. Build the HAL and the 5 states
-    //Los estados que necesitan accionar el hardware llaman a la HAL
+    // States that need to drive the hardware call the HAL.
     MockBleController hal;
     DisconnectedState disconnected{hal};
     AdvertisingState  advertising{hal};
@@ -107,7 +109,8 @@ int main() {
     ErrorState        error{hal};
 
     // 2. Wire up the transitions
-    //Cada estado recibe los punteros a los estados a los que puede transicionar, solo se setea para que sepan  donde transicionar
+    // Each state receives pointers to the states it can transition to;
+    // setters are used so each state knows where to go next.
     disconnected.setAdvertising(&advertising);
 
     advertising.setDisconnected(&disconnected);
@@ -119,28 +122,29 @@ int main() {
     connected.setDisconnected(&disconnected);
 
     error.setDisconnected(&disconnected);
-    //Construyes los estados primero. Luego usas los setters para "cablear" las transiciones entre ellos. Soluciona la dependencia circular.
+    // Build the states first. Then use the setters to "wire" the
+    // transitions between them. This resolves the circular dependency.
 
     // 3. Create and start the state machine
-    BleStateMachine<16> sm{&disconnected}; //la cola interna tendrá capacidad para 16 eventos -  puntero al estado inicial
+    BleStateMachine<16> sm{&disconnected}; // internal queue capacity = 16 events - pointer to the initial state
     sm.start();
     /*
-    Arranca el sistema:
+    Boots the system:
 
-    Llama disconnected.enter() (entrada inicial)
-    Lanza el worker thread que va a procesar eventos
+    Calls disconnected.enter() (initial entry)
+    Launches the worker thread that will process events
 
-    A partir de aquí hay dos threads corriendo en paralelo:
+    From here on, two threads run in parallel:
 
-    Main (productor)
-    Worker (consumidor)
+    Main (producer)
+    Worker (consumer)
 
-    1.-start() → entra a Disconnected con enter()
-    2.-Lanza el thread → ejecuta run()
-    3.-run() saca eventos de la cola y transiciona según corresponda
+    1.- start() → enters Disconnected via enter()
+    2.- Launches the thread → executes run()
+    3.- run() pops events from the queue and transitions accordingly
     */
 
-    std::cout << "Initial state = " << stateName(sm.currentStateId()) << "\n\n"; //Imprime el estado inicial (será "Disconnected").
+    std::cout << "Initial state = " << stateName(sm.currentStateId()) << "\n\n"; // Prints the initial state (will be "Disconnected").
 
     // 4. Happy path
     /*
@@ -152,7 +156,7 @@ Connecting
    ↓ ConnectionEstablished
 Connected
    ↓ Disconnect
-Disconnected   ← vuelve al inicio
+Disconnected   ← back to the start
     */
     std::cout << "--- Happy path ---\n";
     postAndWait(sm, BleEventType::StartAdvertising);
@@ -160,10 +164,10 @@ Disconnected   ← vuelve al inicio
     postAndWait(sm, BleEventType::ConnectionEstablished);
     postAndWait(sm, BleEventType::Disconnect);
     /*
-    postAndWait imprime el evento
-    Mete el evento en la cola → el worker lo procesa
-    Main duerme 30ms
-    Main imprime el estado resultante
+    postAndWait prints the event
+    Pushes the event into the queue → the worker processes it
+    Main sleeps 30ms
+    Main prints the resulting state
     */
 
     // 5. Error path
@@ -174,7 +178,7 @@ Disconnected   ← vuelve al inicio
 Advertising
    ↓ ConnectionRequest
 Connecting
-   ↓ Timeout (handshake falló)
+   ↓ Timeout (handshake failed)
 Error
    ↓ Reset
 Disconnected   ← recovery
@@ -190,8 +194,8 @@ Disconnected   ← recovery
     std::cout << "=== Demo finished ===\n";
     return 0;
     /*
-    Pone running_ = false
-    Llama queue_.shutdown() → despierta al worker dormido
-    worker_.join() → espera a que el thread termine
+    Sets running_ = false
+    Calls queue_.shutdown() → wakes up the sleeping worker
+    worker_.join() → waits for the thread to finish
     */
 }

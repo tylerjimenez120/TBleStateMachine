@@ -46,7 +46,8 @@ class IState {
     IState() = default;
     virtual ~IState() = default;
 
-    //Copy/move deshabilitados - Los estados son objetos únicos (singletons internos del state machine).solo se referencian via puntero.
+    // Copy/move disabled - States are unique objects (internal singletons of
+    // the state machine). They are only referenced via pointer.
     IState(const IState&) = delete;
     IState& operator=(const IState&) = delete;
     IState(IState&&) = delete;
