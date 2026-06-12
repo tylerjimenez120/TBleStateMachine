@@ -1,3 +1,7 @@
+## 🗺️ State machine
+
+![BLE Peripheral State Machine](diagrams/state_machine.png)
+
 # TBleStateMachine — State Design Pattern Lab (BLE Peripheral GAP)
 
 Implementation of the **State Design Pattern** in C++17 modeling the
